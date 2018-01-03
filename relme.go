@@ -84,9 +84,9 @@ func parseLinks(r io.Reader) (links []string, err error) {
 		return
 	}
 
-	rels := searchAll(root, isRel)
+	rels := searchAll(root, isRelMe)
 	for _, node := range rels {
-		links = append(links, readRel(node))
+		links = append(links, getAttr(node, "href"))
 	}
 
 	return
@@ -108,16 +108,17 @@ func searchAll(node *html.Node, pred func(*html.Node) bool) (results []*html.Nod
 	return
 }
 
-func readRel(node *html.Node) string {
-	if getAttr(node, "rel") == "me" {
-		return getAttr(node, "href")
+func isRelMe(node *html.Node) bool {
+	if node.Type == html.ElementNode && node.Data == "a" {
+		rels := strings.Split(getAttr(node, "rel"), " ")
+		for _, rel := range rels {
+			if rel == "me" {
+				return true
+			}
+		}
 	}
 
-	return ""
-}
-
-func isRel(node *html.Node) bool {
-	return node.Type == html.ElementNode && node.Data == "a" && getAttr(node, "rel") != ""
+	return false
 }
 
 func getAttr(node *html.Node, attrName string) string {

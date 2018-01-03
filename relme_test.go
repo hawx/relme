@@ -60,7 +60,7 @@ func TestFind(t *testing.T) {
 <body>
   <a rel="me" href="https://example.com/a">what</a>
   <div>
-    <a rel="me" href="https://example.com/b">another</a>
+    <a rel="what me ok" href="https://example.com/b">another</a>
   </div>
 </body>
 `
