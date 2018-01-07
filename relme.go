@@ -13,18 +13,34 @@ import (
 	"golang.org/x/net/html"
 )
 
-var Client = http.DefaultClient
+var relMe = &RelMe{Client: http.DefaultClient}
+
+func FindVerified(profile string) (links []string, err error) {
+	return relMe.FindVerified(profile)
+}
+
+func Find(profile string) (links []string, err error) {
+	return relMe.Find(profile)
+}
+
+func LinksTo(remote, test string) (ok bool, err error) {
+	return relMe.LinksTo(remote, test)
+}
+
+type RelMe struct {
+	Client *http.Client
+}
 
 // FindVerified takes a profile URL and returns a list of all hrefs in <a
 // rel="me"/> elements on the page that also link back to the profile.
-func FindVerified(profile string) (links []string, err error) {
-	profileLinks, err := Find(profile)
+func (me *RelMe) FindVerified(profile string) (links []string, err error) {
+	profileLinks, err := me.Find(profile)
 	if err != nil {
 		return
 	}
 
 	for _, link := range profileLinks {
-		if ok, err := LinksTo(link, profile); err == nil && ok {
+		if ok, err := me.LinksTo(link, profile); err == nil && ok {
 			links = append(links, link)
 		}
 	}
@@ -34,13 +50,13 @@ func FindVerified(profile string) (links []string, err error) {
 
 // Find takes a profile URL and returns a list of all hrefs in <a rel="me"/>
 // elements on the page.
-func Find(profile string) (links []string, err error) {
+func (me *RelMe) Find(profile string) (links []string, err error) {
 	req, err := http.NewRequest("GET", profile, nil)
 	if err != nil {
 		return
 	}
 
-	resp, err := Client.Do(req)
+	resp, err := me.Client.Do(req)
 	if err != nil {
 		return
 	}
@@ -51,7 +67,7 @@ func Find(profile string) (links []string, err error) {
 
 // LinksTo takes a remote profile URL and checks whether any of the hrefs in <a
 // rel="me"/> elements match the test URL.
-func LinksTo(remote, test string) (ok bool, err error) {
+func (me *RelMe) LinksTo(remote, test string) (ok bool, err error) {
 	testURL, err := url.Parse(test)
 	if err != nil {
 		return
@@ -62,7 +78,7 @@ func LinksTo(remote, test string) (ok bool, err error) {
 		return
 	}
 
-	links, err := Find(remote)
+	links, err := me.Find(remote)
 	if err != nil {
 		return
 	}
