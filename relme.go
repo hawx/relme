@@ -56,7 +56,11 @@ func LinksTo(remote, test string) (ok bool, err error) {
 	if err != nil {
 		return
 	}
-	testURL.Scheme = "https"
+
+	testRedirects, err := follow(testURL)
+	if err != nil {
+		return
+	}
 
 	links, err := Find(remote)
 	if err != nil {
@@ -68,14 +72,87 @@ func LinksTo(remote, test string) (ok bool, err error) {
 		if err != nil {
 			continue
 		}
-		linkURL.Scheme = "https"
 
-		if strings.TrimRight(linkURL.String(), "/") == strings.TrimRight(testURL.String(), "/") {
+		linkRedirects, err := follow(linkURL)
+		if err != nil {
+			continue
+		}
+
+		if compare(linkRedirects, testRedirects) {
 			return true, nil
 		}
 	}
 
 	return false, nil
+}
+
+func normalizeInPlace(urls []string) {
+	for i, a := range urls {
+		aURL, err := url.Parse(a)
+		if err != nil {
+			continue
+		}
+		aURL.Scheme = "https"
+
+		urls[i] = strings.TrimRight(aURL.String(), "/")
+	}
+}
+
+func compare(as, bs []string) bool {
+	normalizeInPlace(as)
+	normalizeInPlace(bs)
+
+	for _, a := range as {
+		for _, b := range bs {
+			if a == b {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func follow(remote *url.URL) (redirects []string, err error) {
+	noRedirectClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	previous := map[string]struct{}{}
+	current := remote
+
+	for {
+		redirects = append(redirects, current.String())
+
+		req, err := http.NewRequest("GET", current.String(), nil)
+		if err != nil {
+			break
+		}
+		previous[current.String()] = struct{}{}
+
+		resp, err := noRedirectClient.Do(req)
+		if err != nil {
+			break
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode < 300 || resp.StatusCode >= 400 {
+			break
+		}
+
+		current, err = current.Parse(resp.Header.Get("Location"))
+		if err != nil {
+			break
+		}
+
+		if _, ok := previous[current.String()]; ok {
+			break
+		}
+	}
+
+	return
 }
 
 func parseLinks(r io.Reader) (links []string, err error) {
