@@ -1,14 +1,40 @@
-# rel-me
+# rel-me [![](https://godoc.org/hawx.me/code/relme?status.svg)](https://godoc.org/hawx.me/code/relme)
+
+See http://microformats.org/wiki/rel-me
+
+#### Go
+
+```sh
+$ go get hawx.me/code/relme
+```
 
 ```go
-me := "https://example.com"
+import "hawx.me/code/relme"
+
+me := "https://example.com/me"
 
 links, _ := relme.Find(me)
 for _, link := range links {
-  if relme.LinksTo(link, me) {
+  if ok, _ := relme.LinksTo(link, me); ok {
     fmt.Printf("me=%s\n", link)
   }
 }
+
+// or, simpler
+
+verifiedLinks, _ := relme.FindVerified(me)
+for _, link := range verifiedLinks {
+  fmt.Printf("me=%s\n", link)
+}
 ```
 
-See http://microformats.org/wiki/rel-me
+
+#### Command line
+
+```sh
+$ go get hawx.me/code/relme/cmd/relme
+$ relme https://example.com/me
+...
+$ relme -verified https://example.com/me
+...
+```
