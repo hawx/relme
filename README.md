@@ -19,13 +19,6 @@ for _, link := range links {
     fmt.Printf("me=%s\n", link)
   }
 }
-
-// or, simpler
-
-verifiedLinks, _ := relme.FindVerified(me)
-for _, link := range verifiedLinks {
-  fmt.Printf("me=%s\n", link)
-}
 ```
 
 
