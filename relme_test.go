@@ -23,24 +23,15 @@ func testPage(link string) string {
 `
 }
 
-func TestFindVerified(t *testing.T) {
+func TestVerify(t *testing.T) {
 	assert := assert.New(t)
 
-	var rURL, sURL string
-
 	r := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, testPage(sURL))
+		fmt.Fprintf(w, testPage("http://me.example.com"))
 	}))
 	defer r.Close()
-	rURL = r.URL
 
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, testPage(rURL))
-	}))
-	defer s.Close()
-	sURL = s.URL
-
-	links, err := FindVerified(s.URL)
+	links, err := Verify("http://me.example.com", []string{r.URL, "http://social.example.com"})
 	assert.Nil(err)
 
 	if assert.Len(links, 1) {

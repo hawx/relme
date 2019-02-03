@@ -15,12 +15,12 @@ import (
 
 var relMe = &RelMe{Client: http.DefaultClient}
 
-func FindVerified(profile string) (links []string, err error) {
-	return relMe.FindVerified(profile)
-}
-
 func Find(profile string) (links []string, err error) {
 	return relMe.Find(profile)
+}
+
+func Verify(profile string, links []string) (verifiedLinks []string, err error) {
+	return relMe.Verify(profile, links)
 }
 
 func LinksTo(remote, test string) (ok bool, err error) {
@@ -29,23 +29,6 @@ func LinksTo(remote, test string) (ok bool, err error) {
 
 type RelMe struct {
 	Client *http.Client
-}
-
-// FindVerified takes a profile URL and returns a list of all hrefs in <a
-// rel="me"/> elements on the page that also link back to the profile.
-func (me *RelMe) FindVerified(profile string) (links []string, err error) {
-	profileLinks, err := me.Find(profile)
-	if err != nil {
-		return
-	}
-
-	for _, link := range profileLinks {
-		if ok, err := me.LinksTo(link, profile); err == nil && ok {
-			links = append(links, link)
-		}
-	}
-
-	return
 }
 
 // Find takes a profile URL and returns a list of all hrefs in <a rel="me"/>
@@ -63,6 +46,19 @@ func (me *RelMe) Find(profile string) (links []string, err error) {
 	defer resp.Body.Close()
 
 	return parseLinks(resp.Body)
+}
+
+// Verify takes a profile URL and a list of profile links, and returns a list of
+// all hrefs in <a rel="me"/> elements on the page that also link back to the
+// profile.
+func (me *RelMe) Verify(profile string, links []string) (verifiedLinks []string, err error) {
+	for _, link := range links {
+		if ok, err := me.LinksTo(link, profile); err == nil && ok {
+			verifiedLinks = append(verifiedLinks, link)
+		}
+	}
+
+	return
 }
 
 // LinksTo takes a remote profile URL and checks whether any of the hrefs in <a

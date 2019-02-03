@@ -15,11 +15,13 @@ func printHelp() {
 }
 
 func run(url string, verify bool) ([]string, error) {
-	if verify {
-		return relme.FindVerified(url)
+	links, err := relme.Find(url)
+
+	if verify && err == nil {
+		links, err = relme.Verify(url, links)
 	}
 
-	return relme.Find(url)
+	return links, err
 }
 
 func main() {
