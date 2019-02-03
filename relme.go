@@ -19,6 +19,10 @@ func Find(profile string) (links []string, err error) {
 	return relMe.Find(profile)
 }
 
+func FindAuth(profile string) (links []string, err error) {
+	return relMe.FindAuth(profile)
+}
+
 func Verify(profile string, links []string) (verifiedLinks []string, err error) {
 	return relMe.Verify(profile, links)
 }
@@ -45,7 +49,25 @@ func (me *RelMe) Find(profile string) (links []string, err error) {
 	}
 	defer resp.Body.Close()
 
-	return parseLinks(resp.Body)
+	return parseLinks(resp.Body, isRelMe)
+}
+
+// FindAuth takes a profile URL and returns a list of all hrefs in <a rel="me
+// authn"/> elements on the page, if none are found then it will return a list
+// of all hrefs in <a rel="me"/> elements instead.
+func (me *RelMe) FindAuth(profile string) (links []string, err error) {
+	req, err := http.NewRequest("GET", profile, nil)
+	if err != nil {
+		return
+	}
+
+	resp, err := me.Client.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	return parseLinks(resp.Body, isRelAuthn, isRelMe)
 }
 
 // Verify takes a profile URL and a list of profile links, and returns a list of
@@ -167,15 +189,20 @@ func follow(remote *url.URL) (redirects []string, err error) {
 	return
 }
 
-func parseLinks(r io.Reader) (links []string, err error) {
+func parseLinks(r io.Reader, preds ...func(*html.Node) bool) (links []string, err error) {
 	root, err := html.Parse(r)
 	if err != nil {
 		return
 	}
 
-	rels := searchAll(root, isRelMe)
-	for _, node := range rels {
-		links = append(links, getAttr(node, "href"))
+	for _, pred := range preds {
+		rels := searchAll(root, pred)
+		for _, node := range rels {
+			links = append(links, getAttr(node, "href"))
+		}
+		if len(links) > 0 {
+			return
+		}
 	}
 
 	return
@@ -197,8 +224,28 @@ func searchAll(node *html.Node, pred func(*html.Node) bool) (results []*html.Nod
 	return
 }
 
+func isRelAuthn(node *html.Node) bool {
+	var me, authn bool
+	if node.Type == html.ElementNode && (node.Data == "a" || node.Data == "link") {
+		rels := strings.Split(getAttr(node, "rel"), " ")
+		for _, rel := range rels {
+			if rel == "me" {
+				me = true
+			}
+			if rel == "authn" {
+				authn = true
+			}
+			if me && authn {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func isRelMe(node *html.Node) bool {
-	if node.Type == html.ElementNode && node.Data == "a" {
+	if node.Type == html.ElementNode && (node.Data == "a" || node.Data == "link") {
 		rels := strings.Split(getAttr(node, "rel"), " ")
 		for _, rel := range rels {
 			if rel == "me" {

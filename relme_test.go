@@ -23,22 +23,6 @@ func testPage(link string) string {
 `
 }
 
-func TestVerify(t *testing.T) {
-	assert := assert.New(t)
-
-	r := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, testPage("http://me.example.com"))
-	}))
-	defer r.Close()
-
-	links, err := Verify("http://me.example.com", []string{r.URL, "http://social.example.com"})
-	assert.Nil(err)
-
-	if assert.Len(links, 1) {
-		assert.Equal(links[0], r.URL)
-	}
-}
-
 func TestFind(t *testing.T) {
 	assert := assert.New(t)
 
@@ -46,7 +30,7 @@ func TestFind(t *testing.T) {
 <!doctype html>
 <html>
 <head>
-
+  <link rel="me authn" href="https://example.com/d" />
 </head>
 <body>
   <a rel="me" href="https://example.com/a">what</a>
@@ -64,9 +48,59 @@ func TestFind(t *testing.T) {
 	links, err := Find(s.URL)
 	assert.Nil(err)
 
-	if assert.Len(links, 2) {
-		assert.Equal(links[0], "https://example.com/a")
-		assert.Equal(links[1], "https://example.com/b")
+	if assert.Len(links, 3) {
+		assert.Equal(links[0], "https://example.com/d")
+		assert.Equal(links[1], "https://example.com/a")
+		assert.Equal(links[2], "https://example.com/b")
+	}
+}
+
+func TestFindAuthn(t *testing.T) {
+	assert := assert.New(t)
+
+	html := `
+<!doctype html>
+<html>
+<head>
+  <link rel="me authn" href="https://example.com/d" />
+</head>
+<body>
+  <a rel="me authn" href="https://example.com/a">what</a>
+  <a rel="me" href="https://example.com/c">what</a>
+  <div>
+    <a rel="what me ok authn" href="https://example.com/b">another</a>
+  </div>
+</body>
+`
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, html)
+	}))
+	defer s.Close()
+
+	links, err := FindAuth(s.URL)
+	assert.Nil(err)
+
+	if assert.Len(links, 3) {
+		assert.Equal(links[0], "https://example.com/d")
+		assert.Equal(links[1], "https://example.com/a")
+		assert.Equal(links[2], "https://example.com/b")
+	}
+}
+
+func TestVerify(t *testing.T) {
+	assert := assert.New(t)
+
+	r := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, testPage("http://me.example.com"))
+	}))
+	defer r.Close()
+
+	links, err := Verify("http://me.example.com", []string{r.URL, "http://social.example.com"})
+	assert.Nil(err)
+
+	if assert.Len(links, 1) {
+		assert.Equal(links[0], r.URL)
 	}
 }
 
